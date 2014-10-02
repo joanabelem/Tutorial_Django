@@ -1,21 +1,33 @@
-from models import Poll
-from django.shortcuts import get_object_or_404, render
-from django.http import HttpResponseRedirect, HttpResponse
-from django.core.urlresolvers import reverse
 from models import Choice, Poll
+from django.utils import timezone
 
-def index(request):
-    latest_poll_list = Poll.objects.all().order_by('-pub_date')[:5]
-    context = {'latest_poll_list': latest_poll_list}
-    return render(request, 'polls/index.html', context)
 
-def detail(request, poll_id):
-    poll = get_object_or_404(Poll, pk=poll_id)
-    return render(request, 'polls/detail.html', {'poll': poll})
+from django.shortcuts import get_object_or_404, render
+from django.http import HttpResponseRedirect
+from django.core.urlresolvers import reverse
+from django.views import generic
 
-def results(request, poll_id):
-    poll = get_object_or_404(Poll, pk=poll_id)
-    return render(request, 'polls/results.html', {'poll': poll})
+class IndexView(generic.ListView):
+    template_name = 'polls/index.html'
+    context_object_name = 'latest_poll_list'
+
+    def get_queryset(self):
+        return Poll.objects.filter(
+            pub_date__lte=timezone.now()
+        ).order_by('-pub_date')[:5]
+
+
+class DetailView(generic.DetailView):
+    def get_queryset(self):
+        """
+        Excludes any polls that aren't published yet.
+        """
+        return Poll.objects.filter(pub_date__lte=timezone.now())
+
+
+class ResultsView(generic.DetailView):
+    model = Poll
+    template_name = 'polls/results.html'
 
 def vote(request, poll_id):
     p = get_object_or_404(Poll, pk=poll_id)
@@ -34,3 +46,4 @@ def vote(request, poll_id):
         # with POST data. This prevents data from being posted twice if a
         # user hits the Back button.
         return HttpResponseRedirect(reverse('polls:results', args=(p.id,)))
+
